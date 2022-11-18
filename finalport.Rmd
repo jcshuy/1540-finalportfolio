@@ -1,0 +1,538 @@
+---
+title: "SEPSECs protein analysis overview workflow"
+author: "Jay Cao"
+date: "12/18/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+### Resources/References
+The gene SEPSECs (Sep (O-Phosphoserine) TRNA:Sec (Selenocysteine) TRNA Synthase) is responsible for producing the SepSecS enzyme, an enzyme which aids in the production of tRNA. You can read more about the gene in the following links:
+- [refseq](https://www.ncbi.nlm.nih.gov/gene/51091)
+- [Homolo gene](https://www.ncbi.nlm.nih.gov/homologene/15031)
+- [Uniprot](https://www.uniprot.org/uniprot/Q9HD40)
+- [PDB](https://www.rcsb.org/structure/3HL2)
+
+This document will compile summary information about the gene SEPSECs, as well as use genomic data to produce other computational structures.
+
+## Preperation: Load Packages
+```{r cars}
+# github packages
+library(compbio4all)
+
+# CRAN packages
+library(rentrez)
+library(seqinr)
+library(ape)
+
+# Bioconductor packages
+library(msa)
+library(BiocManager)
+library(Biostrings)
+library(drawProteins)
+```
+
+## Accession numbers        
+### Accession number tables
+```{r}
+table.accNum <- c("NP_058651.3",
+                  "XP_517129.2",
+                  "XP_001082141.2",
+                  "XP_545970.3",
+                  "XP_002688221.2",
+                  "NP_766078.1",
+                  "NP_001121759.1",
+                  "XP_026503787.1",            # No neanderthal data, species found using BLAST
+                  "NP_001004947.2",            # Only exists in vertebrates (no dros. data), species found using BLAST
+                  "XP_029875047.1")            # Species found using BLAST
+
+table.uniprotID <- c("Q9HD40",
+                     "K7BSH1",
+                     "F7G5F9",
+                     "J9NRL3",
+                     "E1BPY3",
+                     "Q6P6M7",
+                     "B2GV97",
+                     "A0A674I5U3",
+                     "Q28EN2",
+                     "A0A663DKE2")
+
+table.PDB <- c("3HL2",
+               "N/A",
+               "N/A",
+               "N/A",
+               "N/A",
+               "3BCB",
+               "N/A",
+               "N/A",
+               "N/A",
+               "N/A")
+
+table.commonName <- c("Human",
+                      "Chimpanzee",
+                      "Rhesus monkey",
+                      "dog",
+                      "Cattle",
+                      "House mouse",
+                      "Norway rat",
+                      "Three-toed box turtle",
+                      "Western clawed frog",
+                      "Golden eagle")
+
+table.scientificName <- c("Homo sapiens",
+                          "Pan troglodytes",
+                          "Macaca mulatta",
+                          "Canis lupus familiaris",
+                          "Bos taurus",
+                          "Mus musculus",
+                          "Rattus norvegicus",
+                          "Terrapene carolina triunguis",
+                          "Xenopus tropicalis",
+                          "Aquila chrysaetos chrysaetos")
+
+accTable <- data.frame(table.accNum, table.uniprotID, table.PDB, table.commonName, table.scientificName)
+colnames(accTable) <- c("NCBI Protein Accenssion Number",
+                      "UniProt ID",
+                      "PDP ID",
+                      "Common Name",
+                      "Scientific Name")
+
+pander::pander(accTable)
+```
+
+## Data preparation
+
+### Initial FASTA download
+```{r}
+sepsecs_table<-c("NP_058651.3",    "Q9HD40",    "3HL2",    "Human",   "Homo sapiens",
+              "XP_517129.2",    "K7BSH1",    " NA ",    "Chimpanzee",   "Pan troglodytes",
+              "XP_001082141.2",    "F7G5F9",    " NA ",    "Rhesus monkey",   "Macaca mulatta",
+              "XP_545970.3",    "J9NRL3",    " NA ",    "dog",   "Canis lupus familiaris",
+              "XP_002688221.2",    "E1BPY3",    " NA ",    "Cattle",   "Bos taurus",
+              "NP_766078.1",    "Q6P6M7",    "Q9HD40",    "House mouse",   "Mus musculus",
+              "NP_001121759.1",    "B2GV97",    " NA ",    "Norway rat",   "Rattus norvegicus",
+              "XP_026503787.1",    "A0A674I5U3",    " NA ",    "Three-toed box turtle",   "Terrapene carolina triunguis",
+              "NP_001004947.2",    "Q28EN2",    " NA ",    "Western clawed frog",   "Xenopus tropicalis",
+              "XP_029875047.1",    "A0A663DKE2",    " NA ",    "Golden eagle",   "Aquila chrysaetos chrysaetos")
+
+sepsecs_table_matrix <- matrix(sepsecs_table, byrow = T, nrow = 10)
+sepsecs_table <- as.data.frame(sepsecs_table_matrix,  stringsAsFactors = F)
+colnames(sepsecs_table) <- c("ncbi.protein.accession", "UniProt.id", "PDB", "common.name", "scientific.name")
+sepsecs_table <- as.data.frame(sepsecs_table)
+
+sepsecs_s_list <- compbio4all::entrez_fetch_list(db = "protein", 
+                          id = sepsecs_table$ncbi.protein.accession, 
+                          rettype = "fasta")
+sepsecs_s_list
+```
+
+## General Protein information
+### Protein diagrams
+```{r}
+Q9HD40_json  <- drawProteins::get_features("Q9HD40")
+my_prot_df <- drawProteins::feature_to_dataframe(Q9HD40_json)
+
+my_prot_df[,-2]
+
+# showing structure and regions
+my_canvas <- draw_canvas(my_prot_df)
+my_canvas <- draw_chains(my_canvas, my_prot_df, label_size = 2.5)
+my_canvas <- draw_regions(my_canvas, my_prot_df)
+my_canvas
+
+# showing structure regions and folding
+my_canvas2 <- draw_canvas(my_prot_df)
+my_canvas2 <- draw_chains(my_canvas, my_prot_df, label_size = 2.5)
+my_canvas2 <- draw_regions(my_canvas, my_prot_df)
+my_canvas2 <- draw_folding(my_canvas, my_prot_df)
+my_canvas2
+```
+
+### Dotplots
+#### Download and Clean up raw FASTA file
+```{r}
+hsap.sepsecs_FASTA <- rentrez::entrez_fetch(id = "NP_058651.3", 
+                                            db = "protein", 
+                                            rettype="fasta")
+ 
+hsap.sepsecs_FASTA_parsed <- fasta_cleaner(hsap.sepsecs_FASTA, parse = TRUE)
+```
+
+#### Plotting data
+Make a 2 x 2 grid of dotplots to explore effect of changing window size and nmatch
+```{r}
+# set up 2 x 2 grid, make margins thinner
+par(mfrow = c(2,2), 
+    mar = c(0,0,2,1))
+
+# plot 1: SEPSECS - Defaults
+dotPlot(hsap.sepsecs_FASTA_parsed, hsap.sepsecs_FASTA_parsed, 
+        wsize = 1, 
+        nmatch = 1, 
+        main = "SEPSECS Defaults")
+
+# plot 2: SEPSECS - size = 10, nmatch = 1
+dotPlot(hsap.sepsecs_FASTA_parsed, hsap.sepsecs_FASTA_parsed, 
+        wsize = 10, 
+        nmatch = 1, 
+        main = " SEPSECS - size = 10, nmatch = 1")
+
+# plot 3:  - size = 25, nmatch = 5
+dotPlot(hsap.sepsecs_FASTA_parsed, hsap.sepsecs_FASTA_parsed, 
+        wsize = 25, 
+        nmatch = 5, 
+        main = "SEPSECS - size = 25, nmatch = 5")
+
+# plot 4: size = 20, nmatch = 5
+dotPlot(hsap.sepsecs_FASTA_parsed, hsap.sepsecs_FASTA_parsed, 
+        wsize = 20,
+        nmatch = 5,
+        main = "SEPSECS - size = 20, nmatch = 5")
+
+# reset par() - run this or other plots will be small!
+par(mfrow = c(1,1), 
+    mar = c(4,4,4,4))
+```
+####  Best plot using normal dotplot
+
+This is the most interesting gene dotplot based on the different variations tested (as shown in the above section).
+```{r}
+# be sure to run par - re-run just in case
+par(mfrow = c(1,1), 
+    mar = c(4,4,4,4))
+
+dotPlot(hsap.sepsecs_FASTA_parsed, 
+        hsap.sepsecs_FASTA_parsed,
+        wsize = 25, 
+        nmatch = 5,
+        main = "SEPSECS - size = 25 , nmatch = 5")
+```
+
+
+### Protein properties compiled from databases
+```{r}
+prop.source <- c("Pfam",
+                 "Disprot",
+                 "RepeatsDB",
+                 "UniProt",
+                 "PDB")
+
+prop.property <- c("The protein Q9HD40 only has one major domain also known as SEPSECs which takes up most of size, ranging from 61 to 459.",
+                   "No information was found on Disprot",
+                   "No information was found on RepeatsDB.",
+                   "This protein is found in the cytoplasm of the cell.",
+                   "Visually, we can observe that the protein is mainly comprised of alpha helices with some sparse beta pleated sheets, though the site provides no hard breakdown of the compromisation of either.")
+
+prop.link <- c("https://pfam.xfam.org/protein/Q9HD40",
+               "N/A",
+               "N/A",
+               "https://www.uniprot.org/uniprot/Q9HD40",
+               "https://www.rcsb.org/structure/3HL2")
+
+prop.df <- data.frame(prop.source, prop.property, prop.link)
+colnames(prop.df) <- c("Source", "Information", "Link")
+pander::pander(prop.df)
+```
+
+### Protein feature prediction
+#### Initial Data
+```{r}
+aa.1.1 <- c("A","R","N","D","C","Q","E","G","H","I",
+            "L","K","M","F","P","S","T","W","Y","V")
+aa.1.2 <- c("A","R","N","D","C","Q","E","G","H","I",
+            "L","K","M","F","P","S","T","W","Y","V")
+alpha <- c(285, 53, 97, 163, 22, 67, 134, 197, 111, 91, 
+           221, 249, 48, 123, 82, 122, 119, 33, 63, 167)
+beta <- c(203, 67, 139, 121, 75, 122, 86, 297, 49, 120, 
+          177, 115, 16, 85, 127, 341, 253, 44, 110, 229)
+a.plus.b <- c(175, 78, 120, 111, 74, 74, 86, 171, 33, 93,
+              110, 112, 25, 52, 71, 126, 117, 30, 108, 123)
+a.div.b <- c(361, 146, 183, 244, 63, 114, 257, 377, 107, 239, 
+             339, 321, 91, 158, 188, 327, 238, 72, 130, 378)
+```
+
+#### Setting up secondary structural classifications
+```{r}
+aa.df <- data.frame(aa.1.1, alpha, beta, a.plus.b, a.div.b)
+pander::pander(aa.df)
+
+alpha.prop <- alpha/sum(alpha)
+beta.prop <- beta/sum(beta)
+a.plus.b.prop <- a.plus.b/sum(a.plus.b)
+a.div.b <- a.div.b/sum(a.div.b)
+
+aa.prop <- data.frame(alpha.prop,
+                      beta.prop,
+                      a.plus.b.prop,
+                      a.div.b)
+
+row.names(aa.prop) <- aa.1.1
+pander::pander(aa.prop)
+```
+
+#### Using correlation methods on data 
+Downloading and cleaning initial data
+```{r}
+NP_058651.3 <- rentrez::entrez_fetch(id = "NP_058651.3",
+                                     db = "protein",
+                                     rettype = "fasta")
+
+NP_058651.3 <- compbio4all::fasta_cleaner(NP_058651.3, parse = TRUE)
+
+NP_058651.3.freq.table <- table(NP_058651.3)/length(NP_058651.3)
+
+table_to_vector <- function(table_x){
+  table_names <- attr(table_x, "dimnames")[[1]]
+  table_vect <- as.vector(table_x)
+  names(table_vect) <- table_names
+  return(table_vect)
+}
+
+sepsecs.human.aa.freq <- table_to_vector(NP_058651.3.freq.table)
+
+#Checking for and replacing U values
+aa.names <- names(sepsecs.human.aa.freq)
+any(aa.names == "U")
+
+sum(sepsecs.human.aa.freq)
+aa.prop$sepsecs.human.aa.freq <- sepsecs.human.aa.freq
+```
+
+
+Correlation used by Chou and Zhang
+```{r}
+chou_cor <- function(x,y){
+  numerator <- sum(x*y)
+denominator <- sqrt((sum(x^2))*(sum(y^2)))
+result <- numerator/denominator
+return(result)
+}
+```
+
+
+Cosine similarity used by Higgs and Atwood
+```{r}
+chou_cosine <- function(z.1, z.2){
+  z.1.abs <- sqrt(sum(z.1^2))
+  z.2.abs <- sqrt(sum(z.2^2))
+  my.cosine <- sum(z.1*z.2)/(z.1.abs*z.2.abs)
+  return(my.cosine)
+}
+```
+
+Data Exploration
+```{r}
+par(mfrow = c(2,2), mar = c(1,4,1,1))
+plot(alpha.prop ~ sepsecs.human.aa.freq, data = aa.prop)
+plot(beta.prop ~ sepsecs.human.aa.freq, data = aa.prop)
+plot(a.plus.b.prop  ~ sepsecs.human.aa.freq, data = aa.prop)
+plot(a.div.b ~ sepsecs.human.aa.freq, data = aa.prop)
+par(mfrow = c(1,1), mar = c(1,1,1,1))
+```
+Calculations
+```{r}
+# Correlation between columns
+corr.alpha <- chou_cor(aa.prop[,5], aa.prop[,1])
+corr.beta  <- chou_cor(aa.prop[,5], aa.prop[,2])
+corr.apb   <- chou_cor(aa.prop[,5], aa.prop[,3])
+corr.adb   <- chou_cor(aa.prop[,5], aa.prop[,4])
+
+# Cosine similarities
+cos.alpha <- chou_cosine(aa.prop[,5], aa.prop[,1])
+cos.beta  <- chou_cosine(aa.prop[,5], aa.prop[,2])
+cos.apb   <- chou_cosine(aa.prop[,5], aa.prop[,3])
+cos.adb   <- chou_cosine(aa.prop[,5], aa.prop[,4])
+
+# Calculate distance using Euclidian distance
+aa.prop.flipped <- t(aa.prop)
+round(aa.prop.flipped,2)
+dist(aa.prop.flipped, method = "euclidean")
+
+# Individual distances
+dist.alpha <- dist((aa.prop.flipped[c(1,5),]),  method = "euclidean")
+dist.beta  <- dist((aa.prop.flipped[c(2,5),]),  method = "euclidean")
+dist.apb   <- dist((aa.prop.flipped[c(3,5),]),  method = "euclidean")
+dist.adb  <- dist((aa.prop.flipped[c(4,5),]), method = "euclidean")
+```
+
+Compiled Information
+```{r}
+# fold types
+fold.type <- c("alpha","beta","alpha plus beta", "alpha/beta")
+
+# data
+corr.sim <- round(c(corr.alpha,corr.beta,corr.apb,corr.adb),5)
+cosine.sim <- round(c(cos.alpha,cos.beta,cos.apb,cos.adb),5)
+Euclidean.dist <- round(c(dist.alpha,dist.beta,dist.apb,dist.adb),5)
+
+# summary
+sim.sum <- c("","","most.sim","")
+dist.sum <- c("","","min.dist","")
+
+fold.df <- data.frame(fold.type,
+           corr.sim ,
+           cosine.sim ,
+           Euclidean.dist ,
+           sim.sum ,
+           dist.sum )
+pander::pander(fold.df)
+```
+
+## Percent Identity Comparisons (PID)
+### Initial Data Setup
+Download/Clean FASTA
+```{r}
+
+# Four species: human, chimp, dog, golden eagle (chosen for variety)
+hsap.sepsecs_FASTA <- rentrez::entrez_fetch(id = "NP_058651.3", 
+                                            db = "protein", 
+                                            rettype="fasta")
+ 
+ptrog.sepsecs_FASTA <- rentrez::entrez_fetch(id = "XP_517129.2", 
+                                            db = "protein", 
+                                            rettype="fasta")
+
+clup.sepsecs_FASTA <- rentrez::entrez_fetch(id = "XP_545970.3", 
+                                            db = "protein", 
+                                            rettype="fasta")
+ 
+achry.sepsecs_FASTA <- rentrez::entrez_fetch(id = "XP_029875047.1", 
+                                            db = "protein", 
+                                            rettype="fasta")
+
+hsap.sepsecs_FASTA_vector <- fasta_cleaner(hsap.sepsecs_FASTA, parse = FALSE)
+ptrog.sepsecs_FASTA_vector <- fasta_cleaner(ptrog.sepsecs_FASTA, parse = FALSE)
+clup.sepsecs_FASTA_vector <- fasta_cleaner(clup.sepsecs_FASTA, parse = FALSE)
+achry.sepsecs_FASTA_vector <- fasta_cleaner(achry.sepsecs_FASTA, parse = FALSE)
+```
+
+### PID table 
+Make alignments
+```{r}
+align.HSvPT <- Biostrings::pairwiseAlignment(
+                  hsap.sepsecs_FASTA_vector,
+                  ptrog.sepsecs_FASTA_vector)
+align.HSvCL <- Biostrings::pairwiseAlignment(
+                  hsap.sepsecs_FASTA_vector,
+                  clup.sepsecs_FASTA_vector)
+align.HSvAC <- Biostrings::pairwiseAlignment(
+                  hsap.sepsecs_FASTA_vector,
+                  achry.sepsecs_FASTA_vector)
+align.PTvCL <- Biostrings::pairwiseAlignment(
+                  ptrog.sepsecs_FASTA_vector,
+                  clup.sepsecs_FASTA_vector)
+align.PTvAC <- Biostrings::pairwiseAlignment(
+                  ptrog.sepsecs_FASTA_vector,
+                  achry.sepsecs_FASTA_vector)
+align.CLvAC <- Biostrings::pairwiseAlignment(
+                  clup.sepsecs_FASTA_vector,
+                  achry.sepsecs_FASTA_vector)
+```
+
+Set up PID values
+```{r}
+pid.HSvPT <- Biostrings::pid(align.HSvPT)
+pid.HSvCL <- Biostrings::pid(align.HSvCL)
+pid.HSvAC <- Biostrings::pid(align.HSvAC)
+pid.PTvCL <- Biostrings::pid(align.PTvCL)
+pid.PTvAC <- Biostrings::pid(align.PTvAC)
+pid.CLvAC <- Biostrings::pid(align.CLvAC)
+```
+
+Set up Similarity Matrix
+```{r}
+pids <- c(1, NA, NA, NA,
+          pid.HSvPT, 1, NA, NA,
+          pid.HSvCL, pid.PTvCL, 1, NA,
+          pid.HSvAC, pid.PTvAC, pid.CLvAC, 1)
+
+pid.matrix <- matrix(pids, nrow = 4, byrow = T)
+row.names(pid.matrix) <- c("Homo","Pan","Dog","Eagle")
+colnames(pid.matrix) <- c("Homo","Pan","Dog","Eagle")
+pander::pander(pid.matrix)  
+```
+
+### PID method comparison
+```{r}
+PID1 <- Biostrings::pid(align.HSvPT, type = "PID1")
+PID2 <- Biostrings::pid(align.HSvPT, type = "PID2")
+PID3 <- Biostrings::pid(align.HSvPT, type = "PID3")
+PID4 <- Biostrings::pid(align.HSvPT, type = "PID4")
+
+pid.df_type <- c("PID Type 1", 
+                 "PID Type 2", 
+                 "PID Type 3", 
+                 "PID Type 4")
+pid.df_val <- c(PID1, PID2, PID3, PID4)
+pid.df_denominator <- c("Aligned positions + internal gap positions",
+                        "aligned positions",
+                        "length shorter sequence",
+                        "average length of the two sequences")
+pid.df <- data.frame(pid.df_type, pid.df_val, pid.df_denominator)
+colnames(pid.df) <- c("PID Type", "PID Value", "Denominator")
+pander::pander(pid.df)
+```
+
+## Multiple sequence alignment
+### Initial Data setup
+```{r}
+# Download and clean
+for(i in 1:length(sepsecs_s_list)) {
+  sepsecs_s_list[[i]] <- fasta_cleaner(sepsecs_s_list[[i]], parse = F)
+}
+
+# make a vector to hold each sequence
+sepsecs_vector <- rep(NA, length(sepsecs_s_list))
+
+# name the vector (this makes ggmsa happy)
+names(sepsecs_vector) <- names(sepsecs_s_list)
+
+# extract the sequences from list and put into vector
+for(i in 1:length(sepsecs_vector)){
+  sepsecs_vector[i] <- sepsecs_s_list[[i]]
+}
+
+# Convert to stringset
+hsap.sepsecs_ss <- Biostrings::AAStringSet(sepsecs_vector)
+```
+
+### Build MSA
+```{r}
+msa_val <- msa::msa(hsap.sepsecs_ss, method = "ClustalW")
+
+# Change class and alignment of MSA
+class(msa_val) <- "AAMultipleAlignment"
+```
+
+### Display MSA
+Based on the output from drawProtiens, there is a P loop that occurs around the 100 range.
+```{r}
+ggmsa::ggmsa(msa_val, start = 75, end = 125)
+```
+
+## Distance matrix for all sequences
+```{r}
+sepsecs_seqinr <- msaConvert(msa_val, type = "seqinr::alignment")
+sepsecs_seqinr <- seqinr::dist.alignment(sepsecs_seqinr, matrix = "identity")
+sepsecs_seqinr_rounded <- round(sepsecs_seqinr, digits = 3)
+sepsecs_seqinr_rounded
+```
+
+
+## Phylogeny
+### Phylogenetic tree for all sequences
+```{r}
+phylotree.sepsecs <- nj(sepsecs_seqinr)
+
+# plot tree
+plot.phylo(phylotree.sepsecs, main="Phylogenetic Tree", 
+            type = "phylogram", 
+            use.edge.length = F)
+
+# add label
+mtext(text = "SEPSECs family gene tree - rooted, no branch lengths")
+```
