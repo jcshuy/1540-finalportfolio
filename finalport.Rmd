@@ -1,6 +1,6 @@
 ---
 title: "SEPSECs protein analysis overview workflow"
-author: "Jay Cao"
+author: "Joy Cao"
 date: "12/18/2021"
 output: html_document
 ---
